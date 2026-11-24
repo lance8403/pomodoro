@@ -494,6 +494,70 @@
       </div>
     </section>
 
+    <!-- Persistent "Today's Focus" Task List Card (Saved in browser localStorage) -->
+    <section
+      aria-label="Today's Focus Task List"
+      class="w-full rounded-3xl bg-latte/95 backdrop-blur-md border border-sand shadow-kissaten p-5 sm:p-6 flex flex-col gap-4 transition-all duration-500"
+    >
+      <!-- Header Row: Serif Title + Count Pill + Conditional Clear Done Button -->
+      <div class="w-full flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <h2 class="font-serif text-base font-semibold text-espresso-900 tracking-wide">
+            Today's Focus
+          </h2>
+          <span
+            id="task-count-pill"
+            class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-oat/85 border border-sand/85 text-taupe tabular-nums whitespace-nowrap"
+          >
+            0 of 0
+          </span>
+        </div>
+
+        <button
+          id="btn-clear-done"
+          type="button"
+          class="hidden text-xs font-medium text-taupe hover:text-espresso-900 px-2.5 py-1 rounded-lg hover:bg-oat/75 active:scale-95 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50"
+        >
+          Clear done
+        </button>
+      </div>
+
+      <!-- Add Task Input Form -->
+      <form id="task-form" class="w-full flex items-center gap-2" autocomplete="off">
+        <input
+          id="task-input"
+          type="text"
+          maxlength="120"
+          placeholder="Write one task for this session..."
+          aria-label="Write one task for this session"
+          class="flex-1 min-w-0 h-11 px-3.5 rounded-xl text-sm bg-cream/90 border border-sand text-espresso-900 placeholder:text-taupe/75 focus:outline-none focus:border-terracotta/60 focus:ring-2 focus:ring-terracotta/20 transition-all duration-200"
+        />
+        <button
+          id="btn-add-task"
+          type="submit"
+          class="shrink-0 h-11 px-4 rounded-xl text-sm font-medium text-latte bg-terracotta hover:bg-terracotta-dark active:scale-95 shadow-sm transition-all duration-200 flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-latte focus-visible:ring-terracotta"
+        >
+          <span>+ Add</span>
+        </button>
+      </form>
+
+      <!-- Task List & Calm Empty State -->
+      <div class="w-full">
+        <p
+          id="task-empty"
+          class="text-xs text-taupe text-center py-2.5 px-2 leading-relaxed"
+        >
+          Jot down a small task to anchor your next session.
+        </p>
+
+        <ul
+          id="task-list"
+          aria-label="Focus tasks"
+          class="w-full flex flex-col gap-2"
+        ></ul>
+      </div>
+    </section>
+
     <!-- Subtle Keyboard Shortcut Hints -->
     <footer class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-taupe">
       <span class="flex items-center gap-1.5">
@@ -532,9 +596,10 @@
      *  2. Shared Web Audio Context + Warm Ceramic Bell Chime Synthesizer
      *  3. Realistic Lo-Fi Rain Synthesizer (Layered Brown/Pink Noise + LFO + Droplets)
      *  4. Gentle Window Rain Backdrop Canvas Renderer
-     *  5. High-Precision Dual-Loop Timer Engine (rAF + Background Interval)
-     *  6. Kissaten Theme & SVG Progress Ring Renderer
-     *  7. Event Listeners (Pointer/Touch + Keyboard Shortcuts)
+     *  5. Persistent "Today's Focus" Task List (localStorage)
+     *  6. High-Precision Dual-Loop Timer Engine (rAF + Background Interval)
+     *  7. Kissaten Theme & SVG Progress Ring Renderer
+     *  8. Event Listeners (Pointer/Touch + Keyboard Shortcuts)
      * =========================================================================
      */
 
@@ -544,6 +609,8 @@
       /* -----------------------------------------------------------------------
        * 1. Configuration & State
        * --------------------------------------------------------------------- */
+      const TASKS_STORAGE_KEY = 'kissaten_tasks_v1';
+
       const MODES = {
         focus: {
           id: 'focus',
@@ -596,6 +663,7 @@
         completedFocusCount: 0,
         resetSpinDeg: 0,
         lastDisplayedSecond: null,
+        tasks: [],
       };
 
       /* -----------------------------------------------------------------------
@@ -642,6 +710,14 @@
 
         sessionDots: document.getElementById('session-dots'),
         sessionCount: document.getElementById('session-count'),
+
+        taskForm: document.getElementById('task-form'),
+        taskInput: document.getElementById('task-input'),
+        btnAddTask: document.getElementById('btn-add-task'),
+        taskCountPill: document.getElementById('task-count-pill'),
+        btnClearDone: document.getElementById('btn-clear-done'),
+        taskEmpty: document.getElementById('task-empty'),
+        taskList: document.getElementById('task-list'),
       };
 
       /* -----------------------------------------------------------------------
@@ -1232,7 +1308,220 @@
       }
 
       /* -----------------------------------------------------------------------
-       * 6. Formatting & Kissaten Theme Rendering
+       * 6. Persistent "Today's Focus" Task List (localStorage)
+       * --------------------------------------------------------------------- */
+
+      /**
+       * Safely reads saved tasks from localStorage and sanitizes each entry.
+       */
+      function loadTasks() {
+        try {
+          const raw = window.localStorage.getItem(TASKS_STORAGE_KEY);
+          if (!raw) {
+            state.tasks = [];
+            return;
+          }
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) {
+            state.tasks = [];
+            return;
+          }
+          state.tasks = parsed
+            .filter((item) => item && typeof item.text === 'string' && item.text.trim().length > 0)
+            .map((item, idx) => ({
+              id: typeof item.id === 'string' ? item.id : `task_${Date.now()}_${idx}`,
+              text: item.text.trim().slice(0, 120),
+              done: Boolean(item.done),
+            }));
+        } catch (err) {
+          console.warn('Could not load saved tasks:', err);
+          state.tasks = [];
+        }
+      }
+
+      /**
+       * Safely writes the current task list to localStorage.
+       */
+      function saveTasks() {
+        try {
+          window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(state.tasks));
+        } catch (err) {
+          console.warn('Could not save tasks:', err);
+        }
+      }
+
+      /**
+       * Creates a compact inline SVG element for task checkboxes and delete icons.
+       */
+      function createSvgIcon(type) {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+
+        if (type === 'check') {
+          svg.setAttribute('class', 'w-3.5 h-3.5');
+          svg.setAttribute('stroke-width', '2.6');
+          const poly = document.createElementNS(svgNS, 'polyline');
+          poly.setAttribute('points', '20 6 9 17 4 12');
+          svg.appendChild(poly);
+        } else {
+          svg.setAttribute('class', 'w-3.5 h-3.5');
+          svg.setAttribute('stroke-width', '2');
+          const line1 = document.createElementNS(svgNS, 'line');
+          line1.setAttribute('x1', '18');
+          line1.setAttribute('y1', '6');
+          line1.setAttribute('x2', '6');
+          line1.setAttribute('y2', '18');
+          const line2 = document.createElementNS(svgNS, 'line');
+          line2.setAttribute('x1', '6');
+          line2.setAttribute('y1', '6');
+          line2.setAttribute('x2', '18');
+          line2.setAttribute('y2', '18');
+          svg.appendChild(line1);
+          svg.appendChild(line2);
+        }
+
+        return svg;
+      }
+
+      /**
+       * Adds a trimmed, non-empty task and persists immediately.
+       */
+      function addTask(rawText) {
+        const cleanText = String(rawText || '').trim().slice(0, 120);
+        if (!cleanText) return;
+
+        state.tasks.push({
+          id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          text: cleanText,
+          done: false,
+        });
+        saveTasks();
+        renderTasks();
+      }
+
+      /**
+       * Toggles the completed state of a single task by ID.
+       */
+      function toggleTask(taskId) {
+        const task = state.tasks.find((t) => t.id === taskId);
+        if (!task) return;
+        task.done = !task.done;
+        saveTasks();
+        renderTasks();
+      }
+
+      /**
+       * Deletes a single task by ID.
+       */
+      function deleteTask(taskId) {
+        state.tasks = state.tasks.filter((t) => t.id !== taskId);
+        saveTasks();
+        renderTasks();
+      }
+
+      /**
+       * Removes all completed tasks at once.
+       */
+      function clearCompletedTasks() {
+        state.tasks = state.tasks.filter((t) => !t.done);
+        saveTasks();
+        renderTasks();
+      }
+
+      /**
+       * Renders the Today's Focus header pill, Clear Done action, empty state, and list items.
+       * User text is always inserted via textContent (never innerHTML).
+       */
+      function renderTasks() {
+        const isFocus = state.mode === 'focus';
+        const total = state.tasks.length;
+        const doneCount = state.tasks.filter((t) => t.done).length;
+
+        // Update header count pill & conditional "Clear done" button
+        el.taskCountPill.textContent =
+          total === 0 ? '0 of 0' : `${doneCount} / ${total} done`;
+        el.btnClearDone.classList.toggle('hidden', doneCount === 0);
+
+        // Toggle calm empty state message
+        el.taskEmpty.classList.toggle('hidden', total > 0);
+
+        // Rebuild task list cleanly using safe DOM nodes
+        el.taskList.textContent = '';
+
+        state.tasks.forEach((task) => {
+          const li = document.createElement('li');
+          li.className = task.done
+            ? 'group flex items-center gap-3 px-3 py-2.5 rounded-xl bg-oat/50 border border-sand/70 transition-all duration-200'
+            : 'group flex items-center gap-3 px-3 py-2.5 rounded-xl bg-cream/85 border border-sand/90 hover:border-espresso-800/20 transition-all duration-200';
+
+          // Custom round checkbox button (matches Focus terracotta / Break matcha)
+          const checkBtn = document.createElement('button');
+          checkBtn.type = 'button';
+          checkBtn.setAttribute('role', 'checkbox');
+          checkBtn.setAttribute('aria-checked', String(task.done));
+          checkBtn.setAttribute(
+            'aria-label',
+            task.done ? `Mark "${task.text}" incomplete` : `Mark "${task.text}" complete`
+          );
+
+          const checkedAccent = isFocus
+            ? 'bg-terracotta border-terracotta text-latte focus-visible:ring-terracotta/50'
+            : 'bg-matcha border-matcha text-latte focus-visible:ring-matcha/50';
+          const uncheckedStyle = isFocus
+            ? 'bg-latte border-sand hover:border-terracotta/60 focus-visible:ring-terracotta/50'
+            : 'bg-latte border-sand hover:border-matcha/60 focus-visible:ring-matcha/50';
+
+          checkBtn.className = `w-5 h-5 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-latte ${
+            task.done ? checkedAccent : uncheckedStyle
+          }`;
+
+          if (task.done) {
+            checkBtn.appendChild(createSvgIcon('check'));
+          }
+
+          checkBtn.addEventListener('click', () => {
+            toggleTask(task.id);
+          });
+
+          // Task label text (strictly escaped via textContent)
+          const textSpan = document.createElement('span');
+          textSpan.textContent = task.text;
+          textSpan.className = task.done
+            ? 'flex-1 min-w-0 text-sm leading-snug break-words cursor-pointer select-none line-through text-taupe transition-colors duration-200'
+            : 'flex-1 min-w-0 text-sm leading-snug break-words cursor-pointer select-none text-espresso-900 transition-colors duration-200';
+
+          textSpan.addEventListener('click', () => {
+            toggleTask(task.id);
+          });
+
+          // Subtle accessible delete (×) button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.setAttribute('aria-label', 'Delete task');
+          deleteBtn.title = 'Delete task';
+          deleteBtn.className =
+            'w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-taupe/80 hover:text-espresso-900 hover:bg-oat/90 active:scale-90 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-espresso-800/35';
+          deleteBtn.appendChild(createSvgIcon('delete'));
+
+          deleteBtn.addEventListener('click', () => {
+            deleteTask(task.id);
+          });
+
+          li.appendChild(checkBtn);
+          li.appendChild(textSpan);
+          li.appendChild(deleteBtn);
+          el.taskList.appendChild(li);
+        });
+      }
+
+      /* -----------------------------------------------------------------------
+       * 7. Formatting & Kissaten Theme Rendering
        * --------------------------------------------------------------------- */
       function formatTime(ms) {
         const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -1318,14 +1607,29 @@
         el.btnToggle.classList.toggle('shadow-btn-matcha', !isFocus);
         el.btnToggle.classList.toggle('focus-visible:ring-matcha', !isFocus);
 
+        // Task list "+ Add" button & input focus ring match active Pomodoro mode
+        el.btnAddTask.classList.toggle('bg-terracotta', isFocus);
+        el.btnAddTask.classList.toggle('hover:bg-terracotta-dark', isFocus);
+        el.btnAddTask.classList.toggle('focus-visible:ring-terracotta', isFocus);
+
+        el.btnAddTask.classList.toggle('bg-matcha', !isFocus);
+        el.btnAddTask.classList.toggle('hover:bg-matcha-dark', !isFocus);
+        el.btnAddTask.classList.toggle('focus-visible:ring-matcha', !isFocus);
+
+        el.taskInput.classList.toggle('focus:border-terracotta/60', isFocus);
+        el.taskInput.classList.toggle('focus:ring-terracotta/20', isFocus);
+        el.taskInput.classList.toggle('focus:border-matcha/60', !isFocus);
+        el.taskInput.classList.toggle('focus:ring-matcha/20', !isFocus);
+
         // Completion banner accent
         el.completionBanner.classList.toggle('bg-terracotta-soft/90', isFocus);
         el.completionBanner.classList.toggle('bg-matcha-soft/90', !isFocus);
         el.bannerDot.classList.toggle('bg-terracotta', isFocus);
         el.bannerDot.classList.toggle('bg-matcha', !isFocus);
 
-        // Keep rain controls accented cleanly with current mode
+        // Keep rain controls and task checkboxes accented cleanly with current mode
         renderRainControls();
+        renderTasks();
       }
 
       function renderControls() {
@@ -1379,7 +1683,7 @@
       }
 
       /* -----------------------------------------------------------------------
-       * 7. High-Precision Timer Engine (rAF + Background Safety Interval)
+       * 8. High-Precision Timer Engine (rAF + Background Safety Interval)
        * --------------------------------------------------------------------- */
       function clearLoops() {
         if (state.rafId !== null) {
@@ -1532,7 +1836,7 @@
       }
 
       /* -----------------------------------------------------------------------
-       * 8. Event Listeners & Keyboard Shortcuts
+       * 9. Event Listeners & Keyboard Shortcuts
        * --------------------------------------------------------------------- */
       el.tabFocus.addEventListener('click', () => {
         if (state.mode !== 'focus') switchMode('focus');
@@ -1576,6 +1880,20 @@
         switchMode(nextMode, true);
       });
 
+      el.taskForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const value = el.taskInput.value.trim();
+        if (!value) return;
+        addTask(value);
+        el.taskInput.value = '';
+        el.taskInput.focus();
+      });
+
+      el.btnClearDone.addEventListener('click', () => {
+        clearCompletedTasks();
+        el.btnClearDone.blur();
+      });
+
       window.addEventListener('resize', () => {
         if (state.isRainActive) {
           resizeRainCanvas();
@@ -1585,8 +1903,16 @@
       // Keyboard shortcuts: Space (Start/Pause), R (Reset), L (Lo-Fi Rain)
       window.addEventListener('keydown', (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        const tag = event.target && event.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        const target = event.target;
+        const tag = target && target.tagName;
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          (target && target.isContentEditable)
+        ) {
+          return;
+        }
 
         if (event.code === 'Space') {
           event.preventDefault();
@@ -1601,12 +1927,13 @@
       });
 
       /* -----------------------------------------------------------------------
-       * 9. Initialization
+       * 10. Initialization
        * --------------------------------------------------------------------- */
       function init() {
         el.progressRing.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
         el.progressRing.style.strokeDashoffset = '0';
 
+        loadTasks();
         applyTheme();
         renderProgress();
         renderControls();
