@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kissaten — Quiet Café Pomodoro Timer</title>
+
+  <!-- Editorial Serif (Shippori Mincho) + Clean Soft Sans (DM Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Shippori+Mincho:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Warm Japanese Café (Kissaten) Design Tokens -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Shippori Mincho"', 'Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+            sans: ['"DM Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            washi: '#F6F1E7',
+            cream: '#FAF6EE',
+            latte: '#FFFDF9',
+            oat: '#EFE7DA',
+            sand: '#E5DACB',
+            espresso: {
+              900: '#2C1E18',
+              800: '#4A352A',
+              700: '#644B3D',
+            },
+            taupe: '#8A7568',
+            terracotta: {
+              DEFAULT: '#C86446',
+              dark: '#B85437',
+              light: '#DF9178',
+              soft: '#F9ECE6',
+            },
+            matcha: {
+              DEFAULT: '#6F8A6E',
+              dark: '#5C765B',
+              light: '#98B197',
+              soft: '#ECF2EB',
+            },
+          },
+          boxShadow: {
+            kissaten:
+              '0 22px 50px -20px rgba(44, 30, 24, 0.14), 0 4px 16px -4px rgba(44, 30, 24, 0.06)',
+            'btn-terracotta': '0 10px 24px -8px rgba(200, 100, 70, 0.42)',
+            'btn-matcha': '0 10px 24px -8px rgba(111, 138, 110, 0.42)',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+
+<body
+  class="min-h-screen bg-gradient-to-b from-cream via-washi to-[#EFE7DA] text-espresso-900 font-sans antialiased selection:bg-terracotta/20 selection:text-espresso-900 flex flex-col items-center justify-center relative overflow-x-hidden p-4 sm:p-6"
+>
+  <!-- Subtle Washi Paper Grain Texture Overlay (Pure inline SVG noise, zero external assets) -->
+  <svg
+    aria-hidden="true"
+    class="pointer-events-none fixed inset-0 w-full h-full opacity-[0.04] z-0 mix-blend-multiply"
+  >
+    <filter id="washi-grain">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.82"
+        numOctaves="3"
+        stitchTiles="stitch"
+      />
+      <feColorMatrix type="saturate" values="0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#washi-grain)" />
+  </svg>
+
+  <!-- Soft Warm Sunlight Wash Behind Card -->
+  <div
+    id="ambient-sunlight"
+    aria-hidden="true"
+    class="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[660px] aspect-square rounded-full blur-[120px] opacity-35 transition-colors duration-1000 bg-terracotta/20 z-0"
+  ></div>
+
+  <!-- Subtle Falling Café Window Rain Canvas (Revealed smoothly when Lo-Fi Rain is active) -->
+  <canvas
+    id="rain-canvas"
+    aria-hidden="true"
+    class="pointer-events-none fixed inset-0 w-full h-full z-0 opacity-0 transition-opacity duration-1000"
+  ></canvas>
+
+  <!-- Main Centered Application Container -->
+  <main class="relative z-10 w-full max-w-md mx-auto flex flex-col items-center gap-4 sm:gap-5">
+    <!-- Top Café Header: Minimal Ceramic Cup Emblem + Chime Controls -->
+    <header class="w-full flex items-center justify-between px-1">
+      <div class="flex items-center gap-2.5">
+        <!-- Minimal Ceramic Coffee Cup & Rising Steam SVG -->
+        <div
+          id="brand-badge"
+          class="w-9 h-9 rounded-2xl bg-latte/90 border border-sand flex items-center justify-center shadow-sm text-terracotta transition-colors duration-700"
+        >
+          <svg
+            class="w-5 h-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.65"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <!-- Delicate steam wisps -->
+            <path d="M8.5 5.5c0-1 .7-1.6.7-2.5" class="opacity-70" />
+            <path d="M12 5.5c0-1 .7-1.6.7-2.5" class="opacity-70" />
+            <!-- Ceramic cup body & handle -->
+            <path d="M5 9h10.5v5a5.25 5.25 0 0 1-5.25 5.25h0A5.25 5.25 0 0 1 5 14V9z" />
+            <path d="M15.5 10.5h1.75a2.25 2.25 0 0 1 0 4.5H15.5" />
+            <!-- Wooden saucer line -->
+            <path d="M4 21h12.5" class="opacity-60" />
+          </svg>
+        </div>
+
+        <div class="flex flex-col leading-tight">
+          <h1 class="font-serif text-lg font-semibold tracking-wide text-espresso-900">
+            Kissaten
+          </h1>
+          <span class="text-[11px] text-taupe tracking-wider uppercase">
+            Quiet Café Focus
+          </span>
+        </div>
+      </div>
+
+      <!-- Chime Audio Controls (Preview & Mute) -->
+      <div class="flex items-center gap-1.5">
+        <button
+          id="btn-test-chime"
+          type="button"
+          title="Preview completion bell"
+          aria-label="Preview completion bell"
+          class="group flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-espresso-800 bg-latte/85 border border-sand hover:bg-latte hover:border-espresso-800/30 active:scale-95 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50"
+        >
+          <svg
+            class="w-3.5 h-3.5 text-taupe group-hover:text-espresso-900 transition-colors duration-200"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <span class="hidden sm:inline">Test Chime</span>
+        </button>
+
+        <button
+          id="btn-mute"
+          type="button"
+          title="Mute or unmute timer chime"
+          aria-label="Mute timer chime"
+          aria-pressed="false"
+          class="p-2.5 rounded-xl text-espresso-800 bg-latte/85 border border-sand hover:bg-latte hover:border-espresso-800/30 active:scale-95 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50"
+        >
+          <!-- Chime Sound On Icon -->
+          <svg
+            id="icon-sound-on"
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <!-- Chime Sound Off Icon -->
+          <svg
+            id="icon-sound-off"
+            class="w-4 h-4 hidden text-taupe"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Primary Soft Oat / Latte Timer Card -->
+    <section
+      aria-label="Pomodoro Timer"
+      class="w-full rounded-3xl bg-latte/95 backdrop-blur-md border border-sand shadow-kissaten p-5 sm:p-8 flex flex-col items-center gap-6 transition-all duration-500"
+    >
+      <!-- Mode Switcher Pills (Focus 25m / Short Break 5m) -->
+      <div
+        role="tablist"
+        aria-label="Timer Mode"
+        class="w-full grid grid-cols-2 p-1.5 rounded-2xl bg-oat/75 border border-sand/90"
+      >
+        <button
+          id="tab-focus"
+          role="tab"
+          type="button"
+          aria-selected="true"
+          class="py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50 bg-latte text-terracotta-dark shadow-sm border border-sand/70"
+        >
+          <span>Focus</span>
+          <span class="text-xs opacity-65 font-normal tabular-nums">25m</span>
+        </button>
+
+        <button
+          id="tab-break"
+          role="tab"
+          type="button"
+          aria-selected="false"
+          class="py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-matcha/50 text-taupe hover:text-espresso-800 border border-transparent"
+        >
+          <span>Short Break</span>
+          <span class="text-xs opacity-65 font-normal tabular-nums">5m</span>
+        </button>
+      </div>
+
+      <!-- Circular SVG Progress Ring & Editorial Serif Countdown -->
+      <div class="relative w-full max-w-[264px] sm:max-w-[276px] aspect-square flex items-center justify-center my-0.5">
+        <!-- Soft Ceramic Glow Halo -->
+        <div
+          id="ring-halo"
+          aria-hidden="true"
+          class="absolute inset-8 rounded-full blur-2xl opacity-25 transition-all duration-700 bg-terracotta-soft"
+        ></div>
+
+        <!-- Crisp Responsive SVG Ring -->
+        <svg
+          class="w-full h-full overflow-visible"
+          viewBox="0 0 280 280"
+          role="img"
+          aria-label="Timer progress ring"
+        >
+          <defs>
+            <!-- Warm Terracotta Focus Gradient -->
+            <linearGradient id="grad-focus" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#DF9178" />
+              <stop offset="52%" stop-color="#C86446" />
+              <stop offset="100%" stop-color="#B85437" />
+            </linearGradient>
+
+            <!-- Soft Ceremonial Matcha Break Gradient -->
+            <linearGradient id="grad-rest" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#98B197" />
+              <stop offset="52%" stop-color="#6F8A6E" />
+              <stop offset="100%" stop-color="#5C765B" />
+            </linearGradient>
+          </defs>
+
+          <!-- Delicate Inner Porcelain Rim (Hairline Dotted Ring) -->
+          <circle
+            cx="140"
+            cy="140"
+            r="105"
+            fill="none"
+            stroke="#E5DACB"
+            stroke-width="1.25"
+            stroke-dasharray="2 7"
+          />
+
+          <!-- Warm Sand Track Circle -->
+          <circle
+            cx="140"
+            cy="140"
+            r="121"
+            fill="none"
+            stroke="#ECE3D5"
+            stroke-width="7.5"
+          />
+
+          <!-- Animated Progress Arc (Starts at 12 o'clock) -->
+          <circle
+            id="progress-ring"
+            cx="140"
+            cy="140"
+            r="121"
+            fill="none"
+            stroke="url(#grad-focus)"
+            stroke-width="8"
+            stroke-linecap="round"
+            transform="rotate(-90 140 140)"
+            class="transition-opacity duration-300"
+          />
+        </svg>
+
+        <!-- Centered Time Numerals & Gentle Status Caption -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center select-none px-4">
+          <span
+            id="mode-badge"
+            class="text-[11px] font-semibold uppercase tracking-[0.2em] text-terracotta mb-1.5 transition-colors duration-500"
+          >
+            Focus Session
+          </span>
+
+          <div
+            id="time-display"
+            aria-live="off"
+            class="font-serif text-6xl sm:text-[64px] font-medium tracking-tight text-espresso-900 lining-nums tabular-nums leading-none"
+          >
+            25:00
+          </div>
+
+          <span
+            id="status-label"
+            class="mt-3 text-xs font-normal text-taupe tracking-wide transition-colors duration-300"
+          >
+            Pour a cup and begin
+          </span>
+        </div>
+      </div>
+
+      <!-- Inline Completion Notification Banner (Never uses native alert) -->
+      <div
+        id="completion-banner"
+        role="status"
+        aria-live="polite"
+        class="hidden w-full rounded-2xl bg-terracotta-soft/90 border border-sand px-4 py-3 flex items-center justify-between gap-3 transition-all duration-300"
+      >
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span
+            id="banner-dot"
+            class="w-2 h-2 rounded-full shrink-0 bg-terracotta animate-pulse"
+          ></span>
+          <p id="banner-text" class="text-xs sm:text-sm text-espresso-900 truncate">
+            Focus complete — time for a quiet break.
+          </p>
+        </div>
+        <button
+          id="btn-banner-action"
+          type="button"
+          class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium bg-latte border border-sand text-espresso-900 hover:bg-cream active:scale-95 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50"
+        >
+          Start Break
+        </button>
+      </div>
+
+      <!-- Primary Action Controls: Start/Pause + Reset -->
+      <div class="w-full flex items-center justify-center gap-3">
+        <button
+          id="btn-toggle"
+          type="button"
+          class="flex-1 h-14 px-6 rounded-2xl font-medium text-base text-latte bg-terracotta hover:bg-terracotta-dark active:scale-[0.985] shadow-btn-terracotta transition-all duration-200 flex items-center justify-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-latte focus-visible:ring-terracotta"
+        >
+          <!-- Play Icon -->
+          <svg id="icon-play" class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14z" />
+          </svg>
+          <!-- Pause Icon -->
+          <svg id="icon-pause" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24">
+            <rect x="6" y="4" width="4.5" height="16" rx="1.5" />
+            <rect x="13.5" y="4" width="4.5" height="16" rx="1.5" />
+          </svg>
+          <span id="btn-toggle-label">Start Focus</span>
+        </button>
+
+        <button
+          id="btn-reset"
+          type="button"
+          title="Reset timer (R)"
+          aria-label="Reset timer"
+          class="h-14 w-14 shrink-0 rounded-2xl bg-oat/75 hover:bg-oat text-espresso-800 hover:text-espresso-900 border border-sand active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-latte focus-visible:ring-espresso-800/40"
+        >
+          <svg
+            id="icon-reset"
+            class="w-5 h-5 transition-transform duration-500"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.9"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Subtle Café Ambience Row: Lo-Fi Rain Sound Toggle & Compact Volume Slider -->
+      <div class="w-full pt-4 border-t border-sand/85 flex flex-col gap-3">
+        <div class="w-full flex flex-wrap items-center justify-between gap-3">
+          <!-- Lo-Fi Rain Toggle Button -->
+          <button
+            id="btn-rain"
+            type="button"
+            aria-pressed="false"
+            title="Toggle subtle lo-fi rain ambiance (L)"
+            class="group flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border border-sand bg-cream/90 text-espresso-800 hover:bg-oat/75 active:scale-[0.98] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50"
+          >
+            <!-- Raincloud & Soft Droplets SVG Icon -->
+            <svg
+              id="icon-rain"
+              class="w-4 h-4 text-taupe group-hover:text-espresso-800 transition-colors duration-300"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+              <path d="M8 19v1.5" />
+              <path d="M12 17.5v1.5" />
+              <path d="M16 19v1.5" />
+            </svg>
+            <span>Lo-Fi Rain</span>
+            <span
+              id="rain-status-pill"
+              class="flex items-center gap-1.5 pl-1.5 text-[11px] font-normal text-taupe"
+            >
+              <span
+                id="rain-dot"
+                class="w-1.5 h-1.5 rounded-full bg-sand transition-colors duration-300"
+              ></span>
+              <span id="rain-status-text">Off</span>
+            </span>
+          </button>
+
+          <!-- Compact Rain Volume Slider (Smoothly revealed when Rain is active) -->
+          <div
+            id="rain-volume-wrap"
+            aria-hidden="true"
+            class="flex items-center gap-2 flex-1 min-w-[130px] max-w-[175px] opacity-0 pointer-events-none translate-y-0.5 transition-all duration-300"
+          >
+            <svg
+              class="w-3.5 h-3.5 text-taupe shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
+            <input
+              id="rain-volume"
+              type="range"
+              min="0.08"
+              max="1"
+              step="0.02"
+              value="0.52"
+              aria-label="Lo-fi rain volume"
+              class="w-full h-1.5 rounded-full bg-sand accent-terracotta cursor-pointer focus:outline-none"
+            />
+            <span
+              id="rain-volume-label"
+              class="text-[11px] text-taupe tabular-nums w-7 text-right shrink-0"
+            >
+              52%
+            </span>
+          </div>
+        </div>
+
+        <!-- Completed Sessions Ceramic Bead Tracker -->
+        <div class="w-full pt-3 border-t border-sand/65 flex items-center justify-between text-xs text-taupe">
+          <span class="font-medium text-espresso-800/80">Completed Sessions</span>
+          <div class="flex items-center gap-2" aria-label="Completed focus sessions">
+            <div id="session-dots" class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-oat border border-sand transition-all duration-500"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-oat border border-sand transition-all duration-500"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-oat border border-sand transition-all duration-500"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-oat border border-sand transition-all duration-500"></span>
+            </div>
+            <span
+              id="session-count"
+              class="ml-1 font-serif text-sm font-semibold text-espresso-900 tabular-nums"
+            >
+              0
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Subtle Keyboard Shortcut Hints -->
+    <footer class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-taupe">
+      <span class="flex items-center gap-1.5">
+        <kbd
+          class="px-2 py-0.5 rounded-md bg-latte/90 border border-sand text-espresso-800 font-sans text-[11px] font-medium shadow-2xs"
+        >
+          Space
+        </kbd>
+        <span>Start / Pause</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <kbd
+          class="px-2 py-0.5 rounded-md bg-latte/90 border border-sand text-espresso-800 font-sans text-[11px] font-medium shadow-2xs"
+        >
+          R
+        </kbd>
+        <span>Reset</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <kbd
+          class="px-2 py-0.5 rounded-md bg-latte/90 border border-sand text-espresso-800 font-sans text-[11px] font-medium shadow-2xs"
+        >
+          L
+        </kbd>
+        <span>Rain</span>
+      </span>
+    </footer>
+  </main>
+
+  <script>
+    /**
+     * =========================================================================
+     * KISSATEN — WARM JAPANESE CAFÉ POMODORO TIMER
+     * Architecture:
+     *  1. Configuration & State Management
+     *  2. Shared Web Audio Context + Warm Ceramic Bell Chime Synthesizer
+     *  3. Realistic Lo-Fi Rain Synthesizer (Layered Brown/Pink Noise + LFO + Droplets)
+     *  4. Gentle Window Rain Backdrop Canvas Renderer
+     *  5. High-Precision Dual-Loop Timer Engine (rAF + Background Interval)
+     *  6. Kissaten Theme & SVG Progress Ring Renderer
+     *  7. Event Listeners (Pointer/Touch + Keyboard Shortcuts)
+     * =========================================================================
+     */
+
+    (function () {
+      'use strict';
+
+      /* -----------------------------------------------------------------------
+       * 1. Configuration & State
+       * --------------------------------------------------------------------- */
+      const MODES = {
+        focus: {
+          id: 'focus',
+          label: 'Focus Session',
+          shortLabel: 'Focus',
+          durationMs: 25 * 60 * 1000, // 25 minutes
+          startCta: 'Start Focus',
+          resumeCta: 'Resume Focus',
+          runningStatus: 'Steeping in quiet focus',
+          pausedStatus: 'Paused — rest your eyes',
+          readyStatus: 'Pour a cup and begin',
+          gradientUrl: 'url(#grad-focus)',
+          completeMessage: 'Focus complete — time for a quiet break.',
+          nextMode: 'break',
+          nextModeCta: 'Start Break',
+        },
+        break: {
+          id: 'break',
+          label: 'Short Break',
+          shortLabel: 'Break',
+          durationMs: 5 * 60 * 1000, // 5 minutes
+          startCta: 'Start Break',
+          resumeCta: 'Resume Break',
+          runningStatus: 'Sip slowly and unwind',
+          pausedStatus: 'Break paused',
+          readyStatus: 'A gentle five-minute pause',
+          gradientUrl: 'url(#grad-rest)',
+          completeMessage: 'Break finished — ready to focus again?',
+          nextMode: 'focus',
+          nextModeCta: 'Start Focus',
+        },
+      };
+
+      // SVG ring geometry (r = 121 from viewBox 0 0 280 280)
+      const RING_RADIUS = 121;
+      const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+      const state = {
+        mode: 'focus',
+        isRunning: false,
+        isCompleted: false,
+        isMuted: false,
+        isRainActive: false,
+        rainVolume: 0.52,
+        totalMs: MODES.focus.durationMs,
+        remainingMs: MODES.focus.durationMs,
+        endTimestamp: null,
+        rafId: null,
+        bgIntervalId: null,
+        completedFocusCount: 0,
+        resetSpinDeg: 0,
+        lastDisplayedSecond: null,
+      };
+
+      /* -----------------------------------------------------------------------
+       * 2. DOM References
+       * --------------------------------------------------------------------- */
+      const el = {
+        ambientSunlight: document.getElementById('ambient-sunlight'),
+        brandBadge: document.getElementById('brand-badge'),
+        ringHalo: document.getElementById('ring-halo'),
+        rainCanvas: document.getElementById('rain-canvas'),
+
+        tabFocus: document.getElementById('tab-focus'),
+        tabBreak: document.getElementById('tab-break'),
+
+        progressRing: document.getElementById('progress-ring'),
+        modeBadge: document.getElementById('mode-badge'),
+        timeDisplay: document.getElementById('time-display'),
+        statusLabel: document.getElementById('status-label'),
+
+        btnToggle: document.getElementById('btn-toggle'),
+        btnToggleLabel: document.getElementById('btn-toggle-label'),
+        iconPlay: document.getElementById('icon-play'),
+        iconPause: document.getElementById('icon-pause'),
+        btnReset: document.getElementById('btn-reset'),
+        iconReset: document.getElementById('icon-reset'),
+
+        btnMute: document.getElementById('btn-mute'),
+        iconSoundOn: document.getElementById('icon-sound-on'),
+        iconSoundOff: document.getElementById('icon-sound-off'),
+        btnTestChime: document.getElementById('btn-test-chime'),
+
+        btnRain: document.getElementById('btn-rain'),
+        iconRain: document.getElementById('icon-rain'),
+        rainDot: document.getElementById('rain-dot'),
+        rainStatusText: document.getElementById('rain-status-text'),
+        rainVolumeWrap: document.getElementById('rain-volume-wrap'),
+        rainVolume: document.getElementById('rain-volume'),
+        rainVolumeLabel: document.getElementById('rain-volume-label'),
+
+        completionBanner: document.getElementById('completion-banner'),
+        bannerDot: document.getElementById('banner-dot'),
+        bannerText: document.getElementById('banner-text'),
+        btnBannerAction: document.getElementById('btn-banner-action'),
+
+        sessionDots: document.getElementById('session-dots'),
+        sessionCount: document.getElementById('session-count'),
+      };
+
+      /* -----------------------------------------------------------------------
+       * 3. Shared Web Audio Context & Acoustic Ceramic Bell Chime
+       * --------------------------------------------------------------------- */
+      let audioCtx = null;
+
+      /**
+       * Lazily creates or resumes the shared Web Audio API context on user gesture.
+       */
+      function getAudioContext() {
+        try {
+          if (!audioCtx) {
+            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtxClass) return null;
+            audioCtx = new AudioCtxClass();
+          }
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          return audioCtx;
+        } catch (err) {
+          console.warn('Web Audio API unavailable:', err);
+          return null;
+        }
+      }
+
+      /**
+       * Plays a warm, tranquil ceramic café bell / furin chime chord (Dmaj9).
+       * @param {boolean} forcePlay - Preview chime even when muted
+       */
+      function playGentleChime(forcePlay = false) {
+        if (state.isMuted && !forcePlay) return;
+
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        try {
+          const now = ctx.currentTime;
+
+          // Master envelope with soft warm headroom
+          const masterGain = ctx.createGain();
+          masterGain.gain.setValueAtTime(0.0001, now);
+          masterGain.gain.exponentialRampToValueAtTime(0.3, now + 0.045);
+          masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.9);
+          masterGain.connect(ctx.destination);
+
+          // Gentle low-pass filter for warm acoustic ceramic resonance
+          const warmthFilter = ctx.createBiquadFilter();
+          warmthFilter.type = 'lowpass';
+          warmthFilter.frequency.setValueAtTime(2200, now);
+          warmthFilter.Q.setValueAtTime(0.65, now);
+          warmthFilter.connect(masterGain);
+
+          // Peaceful Japanese-inspired pentatonic / maj9 arpeggio (D5, F#5, A5, B5, E6)
+          const notes = [
+            { freq: 587.33, delay: 0.0, duration: 3.0, volume: 0.32 },
+            { freq: 739.99, delay: 0.16, duration: 2.8, volume: 0.24 },
+            { freq: 880.0, delay: 0.32, duration: 2.7, volume: 0.22 },
+            { freq: 987.77, delay: 0.5, duration: 2.5, volume: 0.15 },
+            { freq: 1318.51, delay: 0.72, duration: 2.6, volume: 0.1 },
+          ];
+
+          notes.forEach(({ freq, delay, duration, volume }) => {
+            const startTime = now + delay;
+
+            // Fundamental sine tone
+            const osc = ctx.createOscillator();
+            const noteGain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            noteGain.gain.setValueAtTime(0.0001, startTime);
+            noteGain.gain.linearRampToValueAtTime(volume, startTime + 0.03);
+            noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+            osc.connect(noteGain);
+            noteGain.connect(warmthFilter);
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.06);
+
+            // Soft ceramic overtone shimmer (slightly detuned 2nd harmonic)
+            const overtone = ctx.createOscillator();
+            const overtoneGain = ctx.createGain();
+            overtone.type = 'triangle';
+            overtone.frequency.setValueAtTime(freq * 2.002, startTime);
+
+            overtoneGain.gain.setValueAtTime(0.0001, startTime);
+            overtoneGain.gain.linearRampToValueAtTime(volume * 0.11, startTime + 0.02);
+            overtoneGain.gain.exponentialRampToValueAtTime(
+              0.0001,
+              startTime + duration * 0.42
+            );
+
+            overtone.connect(overtoneGain);
+            overtoneGain.connect(warmthFilter);
+            overtone.start(startTime);
+            overtone.stop(startTime + duration * 0.46);
+          });
+        } catch (err) {
+          console.warn('Could not synthesize chime:', err);
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+       * 4. Lo-Fi Rain Sound Engine (100% Pure Web Audio API)
+       * Combines:
+       *  - Layer A: Seamless stereo brown noise through warm low-pass (distant eaves wash)
+       *  - Layer B: Seamless stereo pink noise through warm band-pass + slow LFO swell
+       *  - Layer C: Gentle randomized filtered rain-patter droplets on glass
+       *  - Smooth click-free fade-in / fade-out envelopes
+       * --------------------------------------------------------------------- */
+      const rainAudio = {
+        masterGain: null,
+        brownSource: null,
+        pinkSource: null,
+        lfoOsc: null,
+        dropletTimer: null,
+        stopTimeout: null,
+        brownBuffer: null,
+        pinkBuffer: null,
+        dropletBuffer: null,
+      };
+
+      /**
+       * Creates a seamless crossfaded stereo AudioBuffer of brown or pink noise
+       * so looping produces zero audible clicks or seams.
+       */
+      function createSeamlessNoiseBuffer(ctx, type, durationSec) {
+        const sampleRate = ctx.sampleRate;
+        const length = Math.floor(sampleRate * durationSec);
+        const fadeSamples = Math.floor(sampleRate * 0.35);
+        const buffer = ctx.createBuffer(2, length, sampleRate);
+
+        for (let ch = 0; ch < 2; ch++) {
+          const data = buffer.getChannelData(ch);
+
+          if (type === 'brown') {
+            let lastOut = 0;
+            for (let i = 0; i < length; i++) {
+              const white = Math.random() * 2 - 1;
+              lastOut = (lastOut + 0.022 * white) / 1.022;
+              data[i] = lastOut * 3.1;
+            }
+          } else {
+            // Paul Kellet refined pink noise approximation
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+            for (let i = 0; i < length; i++) {
+              const white = Math.random() * 2 - 1;
+              b0 = 0.99886 * b0 + white * 0.0555179;
+              b1 = 0.99332 * b1 + white * 0.0750759;
+              b2 = 0.96900 * b2 + white * 0.1538520;
+              b3 = 0.86650 * b3 + white * 0.3104856;
+              b4 = 0.55000 * b4 + white * 0.5329522;
+              b5 = -0.7616 * b5 - white * 0.0168980;
+              data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.085;
+              b6 = white * 0.115926;
+            }
+          }
+
+          // Smooth loop-boundary crossfade to eliminate any loop-point tick
+          for (let i = 0; i < fadeSamples; i++) {
+            const t = i / fadeSamples;
+            const endIdx = length - fadeSamples + i;
+            data[i] = data[i] * t + data[endIdx] * (1 - t);
+          }
+        }
+
+        return buffer;
+      }
+
+      /**
+       * Creates a short filtered white-noise burst buffer reused for rain droplets.
+       */
+      function createDropletBuffer(ctx) {
+        const length = Math.floor(ctx.sampleRate * 0.06);
+        const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          const env = Math.pow(1 - i / length, 2.4);
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
+        return buffer;
+      }
+
+      /**
+       * Schedules soft, natural raindrops pattering intermittently on a café window.
+       */
+      function scheduleRainDroplet() {
+        if (!state.isRainActive || !rainAudio.masterGain) return;
+
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        try {
+          const now = ctx.currentTime;
+          const src = ctx.createBufferSource();
+          src.buffer = rainAudio.dropletBuffer;
+
+          // Warm narrow band-pass filter gives a subtle wooden/glass tap character
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.setValueAtTime(850 + Math.random() * 1750, now);
+          bp.Q.setValueAtTime(3.2 + Math.random() * 3.5, now);
+
+          const dropGain = ctx.createGain();
+          const peak = 0.025 + Math.random() * 0.045;
+          const dur = 0.024 + Math.random() * 0.032;
+          dropGain.gain.setValueAtTime(0.0001, now);
+          dropGain.gain.linearRampToValueAtTime(peak, now + 0.004);
+          dropGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+          src.connect(bp);
+          bp.connect(dropGain);
+
+          // Gentle stereo placement if StereoPannerNode is available
+          if (typeof ctx.createStereoPanner === 'function') {
+            const panner = ctx.createStereoPanner();
+            panner.pan.setValueAtTime((Math.random() * 2 - 1) * 0.65, now);
+            dropGain.connect(panner);
+            panner.connect(rainAudio.masterGain);
+          } else {
+            dropGain.connect(rainAudio.masterGain);
+          }
+
+          src.start(now);
+          src.stop(now + dur + 0.01);
+        } catch (err) {
+          // Fail gracefully without interrupting main wash
+        }
+
+        // Organic randomized spacing between drops (sometimes double-patter)
+        const nextDelay =
+          Math.random() < 0.25
+            ? 65 + Math.random() * 90
+            : 140 + Math.random() * 320;
+        rainAudio.dropletTimer = setTimeout(scheduleRainDroplet, nextDelay);
+      }
+
+      /**
+       * Tears down running Web Audio rain nodes cleanly after fade-out completes.
+       */
+      function disposeRainNodes() {
+        if (rainAudio.dropletTimer) {
+          clearTimeout(rainAudio.dropletTimer);
+          rainAudio.dropletTimer = null;
+        }
+        try {
+          if (rainAudio.brownSource) rainAudio.brownSource.stop();
+          if (rainAudio.pinkSource) rainAudio.pinkSource.stop();
+          if (rainAudio.lfoOsc) rainAudio.lfoOsc.stop();
+          if (rainAudio.masterGain) rainAudio.masterGain.disconnect();
+        } catch (err) {
+          // Nodes may already be stopped
+        }
+        rainAudio.brownSource = null;
+        rainAudio.pinkSource = null;
+        rainAudio.lfoOsc = null;
+        rainAudio.masterGain = null;
+      }
+
+      /**
+       * Starts the lo-fi rain audio graph with a smooth, click-free 1.2s fade-in.
+       */
+      function startRainSound() {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        // Cancel any in-flight fade-out teardown if toggled rapidly
+        if (rainAudio.stopTimeout) {
+          clearTimeout(rainAudio.stopTimeout);
+          rainAudio.stopTimeout = null;
+        }
+
+        try {
+          const now = ctx.currentTime;
+          const targetGain = state.rainVolume * 0.42;
+
+          // If nodes are already alive (e.g., mid fade-out), just smoothly fade back up
+          if (rainAudio.masterGain) {
+            rainAudio.masterGain.gain.cancelScheduledValues(now);
+            rainAudio.masterGain.gain.setValueAtTime(
+              Math.max(0.0001, rainAudio.masterGain.gain.value),
+              now
+            );
+            rainAudio.masterGain.gain.linearRampToValueAtTime(targetGain, now + 0.85);
+            if (!rainAudio.dropletTimer) scheduleRainDroplet();
+            return;
+          }
+
+          // Cache noise buffers once for instant future toggles
+          if (!rainAudio.brownBuffer) {
+            rainAudio.brownBuffer = createSeamlessNoiseBuffer(ctx, 'brown', 6.5);
+          }
+          if (!rainAudio.pinkBuffer) {
+            rainAudio.pinkBuffer = createSeamlessNoiseBuffer(ctx, 'pink', 5.8);
+          }
+          if (!rainAudio.dropletBuffer) {
+            rainAudio.dropletBuffer = createDropletBuffer(ctx);
+          }
+
+          // Master rain gain with click-free fade-in
+          const master = ctx.createGain();
+          master.gain.setValueAtTime(0.0001, now);
+          master.gain.linearRampToValueAtTime(targetGain, now + 1.2);
+          master.connect(ctx.destination);
+          rainAudio.masterGain = master;
+
+          // Warm lo-fi master tone filter (rolls off harsh digital sibilance)
+          const loFiTone = ctx.createBiquadFilter();
+          loFiTone.type = 'lowpass';
+          loFiTone.frequency.setValueAtTime(2150, now);
+          loFiTone.Q.setValueAtTime(0.55, now);
+          loFiTone.connect(master);
+
+          // Layer A: Deep cozy brown-noise roof & eaves rumble
+          const brownSrc = ctx.createBufferSource();
+          brownSrc.buffer = rainAudio.brownBuffer;
+          brownSrc.loop = true;
+
+          const brownLP = ctx.createBiquadFilter();
+          brownLP.type = 'lowpass';
+          brownLP.frequency.setValueAtTime(520, now);
+          brownLP.Q.setValueAtTime(0.5, now);
+
+          const brownGain = ctx.createGain();
+          brownGain.gain.setValueAtTime(0.68, now);
+
+          brownSrc.connect(brownLP);
+          brownLP.connect(brownGain);
+          brownGain.connect(loFiTone);
+          brownSrc.start(now);
+          rainAudio.brownSource = brownSrc;
+
+          // Layer B: Soft pink-noise steady rain body with gentle LFO ebb & flow
+          const pinkSrc = ctx.createBufferSource();
+          pinkSrc.buffer = rainAudio.pinkBuffer;
+          pinkSrc.loop = true;
+
+          const pinkBP = ctx.createBiquadFilter();
+          pinkBP.type = 'bandpass';
+          pinkBP.frequency.setValueAtTime(1120, now);
+          pinkBP.Q.setValueAtTime(0.62, now);
+
+          const pinkGain = ctx.createGain();
+          pinkGain.gain.setValueAtTime(0.46, now);
+
+          // Slow LFO (0.075 Hz ≈ 13.3s wave) for organic rainfall swell
+          const lfo = ctx.createOscillator();
+          lfo.type = 'sine';
+          lfo.frequency.setValueAtTime(0.075, now);
+
+          const lfoDepth = ctx.createGain();
+          lfoDepth.gain.setValueAtTime(0.11, now);
+
+          lfo.connect(lfoDepth);
+          lfoDepth.connect(pinkGain.gain);
+          lfo.start(now);
+          rainAudio.lfoOsc = lfo;
+
+          pinkSrc.connect(pinkBP);
+          pinkBP.connect(pinkGain);
+          pinkGain.connect(loFiTone);
+          pinkSrc.start(now);
+          rainAudio.pinkSource = pinkSrc;
+
+          // Layer C: Gentle glass-window droplet scheduler
+          scheduleRainDroplet();
+        } catch (err) {
+          console.warn('Could not start lo-fi rain:', err);
+        }
+      }
+
+      /**
+       * Smoothly fades out the lo-fi rain over 0.9s without clicks or pops.
+       */
+      function stopRainSound() {
+        if (rainAudio.dropletTimer) {
+          clearTimeout(rainAudio.dropletTimer);
+          rainAudio.dropletTimer = null;
+        }
+
+        const ctx = getAudioContext();
+        if (!ctx || !rainAudio.masterGain) {
+          disposeRainNodes();
+          return;
+        }
+
+        try {
+          const now = ctx.currentTime;
+          rainAudio.masterGain.gain.cancelScheduledValues(now);
+          rainAudio.masterGain.gain.setValueAtTime(
+            Math.max(0.0001, rainAudio.masterGain.gain.value),
+            now
+          );
+          rainAudio.masterGain.gain.linearRampToValueAtTime(0.0001, now + 0.9);
+
+          rainAudio.stopTimeout = setTimeout(() => {
+            rainAudio.stopTimeout = null;
+            if (!state.isRainActive) {
+              disposeRainNodes();
+            }
+          }, 960);
+        } catch (err) {
+          disposeRainNodes();
+        }
+      }
+
+      /**
+       * Smoothly adjusts live rain volume with zero zipper noise.
+       */
+      function updateRainVolume(newVol) {
+        state.rainVolume = Math.max(0.08, Math.min(1, Number(newVol)));
+        el.rainVolumeLabel.textContent = `${Math.round(state.rainVolume * 100)}%`;
+
+        if (state.isRainActive && rainAudio.masterGain && audioCtx) {
+          const now = audioCtx.currentTime;
+          rainAudio.masterGain.gain.setTargetAtTime(
+            state.rainVolume * 0.42,
+            now,
+            0.08
+          );
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+       * 5. Subtle Falling Café Window Rain Canvas Ambiance
+       * Extremely gentle translucent streaks drawn only while rain is active.
+       * --------------------------------------------------------------------- */
+      const rainVisual = {
+        ctx: el.rainCanvas.getContext('2d'),
+        drops: [],
+        rafId: null,
+        width: 0,
+        height: 0,
+      };
+
+      function resizeRainCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        rainVisual.width = window.innerWidth;
+        rainVisual.height = window.innerHeight;
+        el.rainCanvas.width = Math.floor(rainVisual.width * dpr);
+        el.rainCanvas.height = Math.floor(rainVisual.height * dpr);
+        rainVisual.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // Adapt drop count lightly to viewport width so it stays serene & sparse
+        const count = Math.max(18, Math.min(46, Math.floor(rainVisual.width / 32)));
+        rainVisual.drops = Array.from({ length: count }, () => ({
+          x: Math.random() * rainVisual.width,
+          y: Math.random() * rainVisual.height,
+          len: 14 + Math.random() * 26,
+          speed: 2.2 + Math.random() * 2.8,
+          drift: -0.35 - Math.random() * 0.25,
+          alpha: 0.05 + Math.random() * 0.085,
+        }));
+      }
+
+      function drawRainFrame() {
+        if (!state.isRainActive) {
+          rainVisual.rafId = null;
+          return;
+        }
+
+        const ctx = rainVisual.ctx;
+        ctx.clearRect(0, 0, rainVisual.width, rainVisual.height);
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < rainVisual.drops.length; i++) {
+          const d = rainVisual.drops[i];
+          ctx.strokeStyle = `rgba(92, 68, 54, ${d.alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x + d.drift * 4, d.y + d.len);
+          ctx.stroke();
+
+          d.x += d.drift;
+          d.y += d.speed;
+
+          if (d.y > rainVisual.height + 20) {
+            d.y = -d.len - Math.random() * 40;
+            d.x = Math.random() * (rainVisual.width + 60);
+          }
+          if (d.x < -20) {
+            d.x = rainVisual.width + 10;
+          }
+        }
+
+        rainVisual.rafId = requestAnimationFrame(drawRainFrame);
+      }
+
+      function setRainVisualActive(active) {
+        const prefersReducedMotion =
+          window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (active && !prefersReducedMotion) {
+          resizeRainCanvas();
+          el.rainCanvas.classList.remove('opacity-0');
+          el.rainCanvas.classList.add('opacity-100');
+          if (!rainVisual.rafId) {
+            rainVisual.rafId = requestAnimationFrame(drawRainFrame);
+          }
+        } else {
+          el.rainCanvas.classList.remove('opacity-100');
+          el.rainCanvas.classList.add('opacity-0');
+          if (rainVisual.rafId) {
+            cancelAnimationFrame(rainVisual.rafId);
+            rainVisual.rafId = null;
+          }
+        }
+      }
+
+      /**
+       * Toggles the independent Lo-Fi Rain sound + subtle background rainfall.
+       */
+      function toggleRain() {
+        state.isRainActive = !state.isRainActive;
+        el.btnRain.setAttribute('aria-pressed', String(state.isRainActive));
+
+        if (state.isRainActive) {
+          startRainSound();
+          setRainVisualActive(true);
+        } else {
+          stopRainSound();
+          setRainVisualActive(false);
+        }
+
+        renderRainControls();
+      }
+
+      /**
+       * Syncs Lo-Fi Rain toggle styling and volume slider visibility with state & mode.
+       */
+      function renderRainControls() {
+        const isFocus = state.mode === 'focus';
+        const active = state.isRainActive;
+
+        el.rainStatusText.textContent = active ? 'On' : 'Off';
+
+        // Accent color on slider tracks active Pomodoro theme harmoniously
+        el.rainVolume.classList.toggle('accent-terracotta', isFocus);
+        el.rainVolume.classList.toggle('accent-matcha', !isFocus);
+
+        if (active) {
+          el.btnRain.classList.remove('bg-cream/90', 'border-sand', 'text-espresso-800');
+          el.btnRain.classList.toggle('bg-terracotta-soft', isFocus);
+          el.btnRain.classList.toggle('border-terracotta/35', isFocus);
+          el.btnRain.classList.toggle('text-terracotta-dark', isFocus);
+
+          el.btnRain.classList.toggle('bg-matcha-soft', !isFocus);
+          el.btnRain.classList.toggle('border-matcha/35', !isFocus);
+          el.btnRain.classList.toggle('text-matcha-dark', !isFocus);
+
+          el.iconRain.classList.remove('text-taupe');
+          el.iconRain.classList.toggle('text-terracotta', isFocus);
+          el.iconRain.classList.toggle('text-matcha', !isFocus);
+
+          el.rainDot.classList.remove('bg-sand');
+          el.rainDot.classList.toggle('bg-terracotta', isFocus);
+          el.rainDot.classList.toggle('bg-matcha', !isFocus);
+          el.rainDot.classList.add('animate-pulse');
+
+          el.rainVolumeWrap.setAttribute('aria-hidden', 'false');
+          el.rainVolumeWrap.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-0.5');
+          el.rainVolumeWrap.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        } else {
+          el.btnRain.classList.remove(
+            'bg-terracotta-soft',
+            'border-terracotta/35',
+            'text-terracotta-dark',
+            'bg-matcha-soft',
+            'border-matcha/35',
+            'text-matcha-dark'
+          );
+          el.btnRain.classList.add('bg-cream/90', 'border-sand', 'text-espresso-800');
+
+          el.iconRain.classList.remove('text-terracotta', 'text-matcha');
+          el.iconRain.classList.add('text-taupe');
+
+          el.rainDot.classList.remove('bg-terracotta', 'bg-matcha', 'animate-pulse');
+          el.rainDot.classList.add('bg-sand');
+
+          el.rainVolumeWrap.setAttribute('aria-hidden', 'true');
+          el.rainVolumeWrap.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+          el.rainVolumeWrap.classList.add('opacity-0', 'pointer-events-none', 'translate-y-0.5');
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+       * 6. Formatting & Kissaten Theme Rendering
+       * --------------------------------------------------------------------- */
+      function formatTime(ms) {
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      /**
+       * Smoothly updates SVG progress stroke offset and synchronizes MM:SS readout.
+       */
+      function renderProgress() {
+        const ratio = Math.max(0, Math.min(1, state.remainingMs / state.totalMs));
+        const dashOffset = RING_CIRCUMFERENCE * (1 - ratio);
+
+        el.progressRing.style.strokeDashoffset = dashOffset;
+        el.progressRing.style.opacity = ratio <= 0.0005 ? '0' : '1';
+
+        const currentDisplaySec = Math.ceil(state.remainingMs / 1000);
+        if (currentDisplaySec !== state.lastDisplayedSecond) {
+          state.lastDisplayedSecond = currentDisplaySec;
+          const formatted = formatTime(state.remainingMs);
+          el.timeDisplay.textContent = formatted;
+
+          const cfg = MODES[state.mode];
+          document.title = state.isRunning
+            ? `${formatted} • ${cfg.shortLabel} — Kissaten`
+            : 'Kissaten — Quiet Café Pomodoro Timer';
+        }
+      }
+
+      /**
+       * Applies terracotta (Focus) or ceremonial matcha (Short Break) theme tokens.
+       */
+      function applyTheme() {
+        const isFocus = state.mode === 'focus';
+        const cfg = MODES[state.mode];
+
+        // Ambient warm sunlight tint
+        el.ambientSunlight.classList.toggle('bg-terracotta/20', isFocus);
+        el.ambientSunlight.classList.toggle('bg-matcha/20', !isFocus);
+
+        // Brand cup emblem tint
+        el.brandBadge.classList.toggle('text-terracotta', isFocus);
+        el.brandBadge.classList.toggle('text-matcha', !isFocus);
+
+        // Soft ceramic ring halo
+        el.ringHalo.classList.toggle('bg-terracotta-soft', isFocus);
+        el.ringHalo.classList.toggle('bg-matcha-soft', !isFocus);
+
+        // Progress ring SVG stroke gradient
+        el.progressRing.setAttribute('stroke', cfg.gradientUrl);
+
+        // Mode label inside dial
+        el.modeBadge.textContent = cfg.label;
+        el.modeBadge.classList.toggle('text-terracotta', isFocus);
+        el.modeBadge.classList.toggle('text-matcha', !isFocus);
+
+        // Mode switcher tabs
+        el.tabFocus.setAttribute('aria-selected', String(isFocus));
+        el.tabBreak.setAttribute('aria-selected', String(!isFocus));
+
+        if (isFocus) {
+          el.tabFocus.className =
+            'py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50 bg-latte text-terracotta-dark shadow-sm border border-sand/70';
+          el.tabBreak.className =
+            'py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-matcha/50 text-taupe hover:text-espresso-800 border border-transparent';
+        } else {
+          el.tabFocus.className =
+            'py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/50 text-taupe hover:text-espresso-800 border border-transparent';
+          el.tabBreak.className =
+            'py-2.5 px-3 sm:px-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-matcha/50 bg-latte text-matcha-dark shadow-sm border border-sand/70';
+        }
+
+        // Primary Start/Pause button palette
+        el.btnToggle.classList.toggle('bg-terracotta', isFocus);
+        el.btnToggle.classList.toggle('hover:bg-terracotta-dark', isFocus);
+        el.btnToggle.classList.toggle('shadow-btn-terracotta', isFocus);
+        el.btnToggle.classList.toggle('focus-visible:ring-terracotta', isFocus);
+
+        el.btnToggle.classList.toggle('bg-matcha', !isFocus);
+        el.btnToggle.classList.toggle('hover:bg-matcha-dark', !isFocus);
+        el.btnToggle.classList.toggle('shadow-btn-matcha', !isFocus);
+        el.btnToggle.classList.toggle('focus-visible:ring-matcha', !isFocus);
+
+        // Completion banner accent
+        el.completionBanner.classList.toggle('bg-terracotta-soft/90', isFocus);
+        el.completionBanner.classList.toggle('bg-matcha-soft/90', !isFocus);
+        el.bannerDot.classList.toggle('bg-terracotta', isFocus);
+        el.bannerDot.classList.toggle('bg-matcha', !isFocus);
+
+        // Keep rain controls accented cleanly with current mode
+        renderRainControls();
+      }
+
+      function renderControls() {
+        const cfg = MODES[state.mode];
+
+        if (state.isRunning) {
+          el.iconPlay.classList.add('hidden');
+          el.iconPause.classList.remove('hidden');
+          el.btnToggleLabel.textContent = 'Pause';
+          el.statusLabel.textContent = cfg.runningStatus;
+          el.ringHalo.classList.remove('opacity-25');
+          el.ringHalo.classList.add('opacity-45');
+        } else {
+          el.iconPlay.classList.remove('hidden');
+          el.iconPause.classList.add('hidden');
+          el.ringHalo.classList.remove('opacity-45');
+          el.ringHalo.classList.add('opacity-25');
+
+          if (state.isCompleted) {
+            el.btnToggleLabel.textContent = 'Restart';
+            el.statusLabel.textContent = 'Session complete';
+          } else if (state.remainingMs < state.totalMs) {
+            el.btnToggleLabel.textContent = cfg.resumeCta;
+            el.statusLabel.textContent = cfg.pausedStatus;
+          } else {
+            el.btnToggleLabel.textContent = cfg.startCta;
+            el.statusLabel.textContent = cfg.readyStatus;
+          }
+        }
+      }
+
+      /**
+       * Renders the 4 ceramic-bead Pomodoro session indicators.
+       */
+      function renderSessionDots() {
+        el.sessionCount.textContent = String(state.completedFocusCount);
+        const dots = el.sessionDots.children;
+        const filledInCycle =
+          state.completedFocusCount === 0
+            ? 0
+            : ((state.completedFocusCount - 1) % 4) + 1;
+
+        for (let i = 0; i < dots.length; i++) {
+          const isFilled = i < filledInCycle;
+          dots[i].classList.toggle('bg-terracotta', isFilled);
+          dots[i].classList.toggle('border-terracotta-dark/40', isFilled);
+          dots[i].classList.toggle('scale-105', isFilled);
+          dots[i].classList.toggle('bg-oat', !isFilled);
+          dots[i].classList.toggle('border-sand', !isFilled);
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+       * 7. High-Precision Timer Engine (rAF + Background Safety Interval)
+       * --------------------------------------------------------------------- */
+      function clearLoops() {
+        if (state.rafId !== null) {
+          cancelAnimationFrame(state.rafId);
+          state.rafId = null;
+        }
+        if (state.bgIntervalId !== null) {
+          clearInterval(state.bgIntervalId);
+          state.bgIntervalId = null;
+        }
+      }
+
+      function handleCompletion() {
+        clearLoops();
+        state.isRunning = false;
+        state.isCompleted = true;
+        state.remainingMs = 0;
+        state.endTimestamp = null;
+
+        renderProgress();
+        renderControls();
+
+        if (state.mode === 'focus') {
+          state.completedFocusCount += 1;
+          renderSessionDots();
+        }
+
+        playGentleChime(false);
+
+        const cfg = MODES[state.mode];
+        el.bannerText.textContent = cfg.completeMessage;
+        el.btnBannerAction.textContent = cfg.nextModeCta;
+        el.completionBanner.classList.remove('hidden');
+
+        document.title = `Done! • ${cfg.shortLabel} — Kissaten`;
+      }
+
+      function updateRemainingTime() {
+        if (!state.isRunning || state.endTimestamp === null) return;
+
+        const nextRemaining = Math.max(0, state.endTimestamp - Date.now());
+        state.remainingMs = nextRemaining;
+
+        if (nextRemaining <= 0) {
+          handleCompletion();
+          return;
+        }
+
+        renderProgress();
+      }
+
+      function tickAnimationFrame() {
+        if (!state.isRunning) return;
+        updateRemainingTime();
+        if (state.isRunning) {
+          state.rafId = requestAnimationFrame(tickAnimationFrame);
+        }
+      }
+
+      function startTimer() {
+        // Ensure Web Audio API is unlocked on user interaction
+        getAudioContext();
+
+        if (state.isCompleted || state.remainingMs <= 0) {
+          state.remainingMs = state.totalMs;
+          state.isCompleted = false;
+        }
+
+        el.completionBanner.classList.add('hidden');
+
+        state.isRunning = true;
+        state.endTimestamp = Date.now() + state.remainingMs;
+
+        renderControls();
+        clearLoops();
+
+        state.rafId = requestAnimationFrame(tickAnimationFrame);
+        state.bgIntervalId = setInterval(updateRemainingTime, 250);
+      }
+
+      function pauseTimer() {
+        if (!state.isRunning) return;
+        updateRemainingTime();
+        clearLoops();
+        state.isRunning = false;
+        state.endTimestamp = null;
+
+        renderProgress();
+        renderControls();
+      }
+
+      function toggleTimer() {
+        if (state.isRunning) {
+          pauseTimer();
+        } else {
+          startTimer();
+        }
+      }
+
+      function resetTimer() {
+        clearLoops();
+        state.isRunning = false;
+        state.isCompleted = false;
+        state.totalMs = MODES[state.mode].durationMs;
+        state.remainingMs = state.totalMs;
+        state.endTimestamp = null;
+        state.lastDisplayedSecond = null;
+
+        el.completionBanner.classList.add('hidden');
+
+        state.resetSpinDeg -= 360;
+        el.iconReset.style.transform = `rotate(${state.resetSpinDeg}deg)`;
+
+        renderProgress();
+        renderControls();
+      }
+
+      function switchMode(newMode, autoStart = false) {
+        if (!MODES[newMode]) return;
+
+        clearLoops();
+        state.mode = newMode;
+        state.isRunning = false;
+        state.isCompleted = false;
+        state.totalMs = MODES[newMode].durationMs;
+        state.remainingMs = state.totalMs;
+        state.endTimestamp = null;
+        state.lastDisplayedSecond = null;
+
+        el.completionBanner.classList.add('hidden');
+
+        applyTheme();
+        renderProgress();
+        renderControls();
+
+        if (autoStart) {
+          startTimer();
+        }
+      }
+
+      function toggleMute() {
+        state.isMuted = !state.isMuted;
+        el.btnMute.setAttribute('aria-pressed', String(state.isMuted));
+        el.btnMute.setAttribute(
+          'aria-label',
+          state.isMuted ? 'Unmute timer chime' : 'Mute timer chime'
+        );
+        el.iconSoundOn.classList.toggle('hidden', state.isMuted);
+        el.iconSoundOff.classList.toggle('hidden', !state.isMuted);
+      }
+
+      /* -----------------------------------------------------------------------
+       * 8. Event Listeners & Keyboard Shortcuts
+       * --------------------------------------------------------------------- */
+      el.tabFocus.addEventListener('click', () => {
+        if (state.mode !== 'focus') switchMode('focus');
+      });
+
+      el.tabBreak.addEventListener('click', () => {
+        if (state.mode !== 'break') switchMode('break');
+      });
+
+      el.btnToggle.addEventListener('click', () => {
+        toggleTimer();
+        el.btnToggle.blur();
+      });
+
+      el.btnReset.addEventListener('click', () => {
+        resetTimer();
+        el.btnReset.blur();
+      });
+
+      el.btnMute.addEventListener('click', () => {
+        toggleMute();
+        el.btnMute.blur();
+      });
+
+      el.btnTestChime.addEventListener('click', () => {
+        playGentleChime(true);
+        el.btnTestChime.blur();
+      });
+
+      el.btnRain.addEventListener('click', () => {
+        toggleRain();
+        el.btnRain.blur();
+      });
+
+      el.rainVolume.addEventListener('input', (event) => {
+        updateRainVolume(event.target.value);
+      });
+
+      el.btnBannerAction.addEventListener('click', () => {
+        const nextMode = MODES[state.mode].nextMode;
+        switchMode(nextMode, true);
+      });
+
+      window.addEventListener('resize', () => {
+        if (state.isRainActive) {
+          resizeRainCanvas();
+        }
+      });
+
+      // Keyboard shortcuts: Space (Start/Pause), R (Reset), L (Lo-Fi Rain)
+      window.addEventListener('keydown', (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        const tag = event.target && event.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if (event.code === 'Space') {
+          event.preventDefault();
+          toggleTimer();
+        } else if (event.key === 'r' || event.key === 'R') {
+          event.preventDefault();
+          resetTimer();
+        } else if (event.key === 'l' || event.key === 'L') {
+          event.preventDefault();
+          toggleRain();
+        }
+      });
+
+      /* -----------------------------------------------------------------------
+       * 9. Initialization
+       * --------------------------------------------------------------------- */
+      function init() {
+        el.progressRing.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
+        el.progressRing.style.strokeDashoffset = '0';
+
+        applyTheme();
+        renderProgress();
+        renderControls();
+        renderSessionDots();
+        updateRainVolume(state.rainVolume);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
